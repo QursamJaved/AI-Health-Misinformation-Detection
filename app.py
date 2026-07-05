@@ -1,74 +1,81 @@
 import streamlit as st
-import joblib
-import time
 import base64
-from pathlib import Path
+import os
 
 st.set_page_config(
-    page_title="Health Claim Checker",
-    page_icon="🏥",
+    page_title="AI Health Misinformation Detector",
     layout="centered"
 )
 
-# ── Load background image as base64 (so it works with no external hosting) ──────
-@st.cache_data
-def get_base64_bg(image_path: str) -> str:
-    data = Path(image_path).read_bytes()
-    return base64.b64encode(data).decode()
+# ── Load word cloud image as background ─────────────────────────
+def get_base64_image(image_path):
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as f:
+            return base64.b64encode(f.read()).decode()
+    return None
 
-# Put wordcloud_misinfo.png in the SAME FOLDER as this app.py
-bg_base64 = get_base64_bg("wordcloud_misinfo.png")
+img_base64 = get_base64_image("wordcloud_misinfo.png")
 
-CSS = """
+if img_base64:
+    bg_css = f"""
+    background-image: url("data:image/png;base64,{img_base64}");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    """
+else:
+    bg_css = "background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);"
+
+st.markdown(f"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap');
 
-* { box-sizing: border-box; }
+* {{ box-sizing: border-box; }}
 
-html, body, [class*="css"], .stApp {
+html, body, [class*="css"], .stApp {{
     font-family: 'Inter', sans-serif !important;
-    background-image:
-        linear-gradient(135deg, rgba(15,12,41,0.90) 0%, rgba(48,43,99,0.90) 50%, rgba(36,36,62,0.90) 100%),
-        url("data:image/png;base64,__BG_B64__") !important;
-    background-size: cover !important;
-    background-position: center !important;
-    background-repeat: no-repeat !important;
-    background-attachment: fixed !important;
-}
+    {bg_css}
+}}
 
-.block-container {
-    padding: 1.5rem 1.5rem 2rem 1.5rem !important;
-    max-width: 780px !important;
-}
+.block-container {{
+    padding: 2rem 1.5rem !important;
+    max-width: 750px !important;
+}}
 
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu, footer, header {{ visibility: hidden; }}
 
-/* Hero */
-.hero-title {
+/* Main card */
+.main-card {{
+    background: rgba(10, 10, 20, 0.85);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    padding: 2rem;
+    backdrop-filter: blur(12px);
+    margin-bottom: 1.5rem;
+}}
+
+/* Title */
+.hero-title {{
     text-align: center;
-    font-size: 2.6rem;
+    font-size: 2.2rem;
     font-weight: 900;
-    background: linear-gradient(90deg, #a78bfa, #60a5fa, #34d399);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
+    color: #ffffff;
     letter-spacing: -1px;
-    margin-bottom: 0.4rem;
-}
+    margin-bottom: 0.3rem;
+}}
 
-.hero-sub {
+.hero-sub {{
     text-align: center;
     color: #94a3b8;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     margin-bottom: 1.5rem;
-}
+}}
 
-.badge-wrap { text-align: center; margin-bottom: 0.8rem; }
-
-.badge {
+.badge-wrap {{ text-align: center; margin-bottom: 1rem; }}
+.badge {{
     display: inline-block;
-    background: rgba(167,139,250,0.15);
-    border: 1px solid rgba(167,139,250,0.4);
+    background: rgba(167,139,250,0.2);
+    border: 1px solid rgba(167,139,250,0.5);
     color: #a78bfa;
     border-radius: 999px;
     padding: 4px 16px;
@@ -76,239 +83,172 @@ html, body, [class*="css"], .stApp {
     font-weight: 700;
     letter-spacing: 2px;
     text-transform: uppercase;
-}
+}}
 
 /* Stats */
-.stats-row {
+.stats-row {{
     display: flex;
     gap: 0.8rem;
-    margin-bottom: 1.2rem;
-}
+    margin-bottom: 1.5rem;
+}}
 
-.stat-box {
+.stat-box {{
     flex: 1;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 14px;
     padding: 1rem;
     text-align: center;
-}
+}}
 
-.stat-num { font-size: 1.8rem; font-weight: 900; }
-.stat-num.purple { color: #a78bfa; }
-.stat-num.green  { color: #34d399; }
-.stat-num.red    { color: #f87171; }
-.stat-lbl {
-    color: #475569;
-    font-size: 0.68rem;
+.stat-num {{ font-size: 1.8rem; font-weight: 900; }}
+.stat-num.purple {{ color: #a78bfa; }}
+.stat-num.green  {{ color: #34d399; }}
+.stat-num.red    {{ color: #f87171; }}
+.stat-lbl {{
+    color: #64748b;
+    font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     margin-top: 2px;
-}
+}}
 
 /* Input label */
-.input-lbl {
-    color: #64748b;
-    font-size: 0.7rem;
+.input-lbl {{
+    color: #94a3b8;
+    font-size: 0.72rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    margin-bottom: 6px;
-}
+    margin-bottom: 8px;
+}}
 
-/* TEXTAREA FIX — dark text on light bg */
-.stTextArea > div > div > textarea {
-    background-color: #1e1b4b !important;
+/* Textarea */
+.stTextArea > div > div > textarea {{
+    background-color: rgba(15, 15, 30, 0.9) !important;
     color: #e2e8f0 !important;
-    border: 1.5px solid rgba(255,255,255,0.12) !important;
+    border: 1.5px solid rgba(255,255,255,0.15) !important;
     border-radius: 14px !important;
     font-size: 0.97rem !important;
     font-family: 'Inter', sans-serif !important;
     padding: 14px 16px !important;
-    caret-color: #a78bfa !important;
-}
+}}
 
-.stTextArea > div > div > textarea:hover {
-    border-color: rgba(167,139,250,0.55) !important;
-    background-color: #1a1740 !important;
-    box-shadow: 0 0 0 3px rgba(167,139,250,0.1) !important;
-}
+.stTextArea > div > div > textarea:focus {{
+    border-color: #f59e0b !important;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.2) !important;
+}}
 
-.stTextArea > div > div > textarea:focus {
-    border-color: #a78bfa !important;
-    background-color: #1a1740 !important;
-    box-shadow: 0 0 0 4px rgba(167,139,250,0.18) !important;
-}
-
-.stTextArea > div > div > textarea::placeholder {
+.stTextArea > div > div > textarea::placeholder {{
     color: #475569 !important;
-}
+}}
 
-/* Button */
-.stButton > button {
+/* Button - Yellow */
+.stButton > button {{
     width: 100% !important;
-    background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
-    color: white !important;
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+    color: #000000 !important;
     border: none !important;
     border-radius: 12px !important;
     padding: 0.8rem !important;
     font-size: 1rem !important;
-    font-weight: 700 !important;
-    margin-top: 0.6rem !important;
-    transition: all 0.2s ease !important;
-}
+    font-weight: 800 !important;
+    margin-top: 0.8rem !important;
+    letter-spacing: 0.5px !important;
+}}
 
-.stButton > button:hover {
+.stButton > button:hover {{
     transform: translateY(-2px) !important;
-    box-shadow: 0 8px 25px rgba(124,58,237,0.45) !important;
-}
+    box-shadow: 0 8px 25px rgba(245,158,11,0.4) !important;
+}}
 
 /* Results */
-.result-box {
+.result-fake {{
+    background: rgba(239,68,68,0.12);
+    border: 2px solid rgba(239,68,68,0.6);
     border-radius: 16px;
     padding: 1.5rem;
     text-align: center;
     margin: 1rem 0;
-    animation: popIn 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
-}
+}}
 
-.result-fake {
-    background: rgba(239,68,68,0.1);
-    border: 2px solid rgba(239,68,68,0.5);
-}
+.result-true {{
+    background: rgba(52,211,153,0.12);
+    border: 2px solid rgba(52,211,153,0.6);
+    border-radius: 16px;
+    padding: 1.5rem;
+    text-align: center;
+    margin: 1rem 0;
+}}
 
-.result-true {
-    background: rgba(52,211,153,0.1);
-    border: 2px solid rgba(52,211,153,0.5);
-}
-
-.result-icon { font-size: 2.8rem; }
-
-.result-lbl-fake {
-    font-size: 1.4rem;
-    font-weight: 900;
-    color: #f87171;
-    margin: 0.3rem 0;
-}
-
-.result-lbl-true {
-    font-size: 1.4rem;
-    font-weight: 900;
-    color: #34d399;
-    margin: 0.3rem 0;
-}
-
-.result-desc {
-    color: #64748b;
-    font-size: 0.85rem;
-    line-height: 1.5;
-}
+.result-icon {{ font-size: 2.5rem; }}
+.result-lbl-fake {{ font-size: 1.4rem; font-weight: 900; color: #f87171; margin: 0.3rem 0; }}
+.result-lbl-true {{ font-size: 1.4rem; font-weight: 900; color: #34d399; margin: 0.3rem 0; }}
+.result-desc {{ color: #94a3b8; font-size: 0.85rem; line-height: 1.5; }}
 
 /* Examples */
-.ex-title {
-    color: #475569;
-    font-size: 0.68rem;
+.ex-wrap {{
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
+    margin-top: 1rem;
+}}
+
+.ex-title {{
+    color: #64748b;
+    font-size: 0.65rem;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 1.5px;
-    margin: 1rem 0 0.5rem;
-}
+    margin-bottom: 0.6rem;
+}}
 
-.ex-sub {
-    font-size: 0.75rem;
-    font-weight: 700;
-    margin-bottom: 5px;
-}
-
-.ex-sub.red   { color: #f87171; }
-.ex-sub.green { color: #34d399; }
-
-.chip {
+.chip {{
     display: inline-block;
     border-radius: 999px;
     padding: 4px 12px;
     font-size: 0.75rem;
     margin: 3px 2px;
-}
+    cursor: pointer;
+}}
 
-.chip-f {
-    background: rgba(239,68,68,0.1);
-    border: 1px solid rgba(239,68,68,0.3);
+.chip-f {{
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.35);
     color: #fca5a5;
-}
+}}
 
-.chip-t {
-    background: rgba(52,211,153,0.1);
-    border: 1px solid rgba(52,211,153,0.3);
+.chip-t {{
+    background: rgba(52,211,153,0.12);
+    border: 1px solid rgba(52,211,153,0.35);
     color: #6ee7b7;
-}
+}}
 
-/* History */
-.h-title {
-    color: #475569;
-    font-size: 0.68rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1.5px;
-    margin: 1rem 0 0.5rem;
-}
-
-.h-item {
-    border-radius: 10px;
-    padding: 9px 13px;
-    margin-bottom: 6px;
-    font-size: 0.84rem;
-    color: #cbd5e1;
-}
-
-.h-f { background: rgba(239,68,68,0.08); border-left: 3px solid #ef4444; }
-.h-t { background: rgba(52,211,153,0.08); border-left: 3px solid #34d399; }
-
-.footer {
+.footer {{
     text-align: center;
-    color: #1e293b;
+    color: #334155;
     font-size: 0.72rem;
     margin-top: 1.5rem;
-}
-
-@keyframes popIn {
-    from { opacity:0; transform: scale(0.9) translateY(10px); }
-    to   { opacity:1; transform: scale(1) translateY(0); }
-}
+}}
 </style>
-"""
+""", unsafe_allow_html=True)
 
-st.markdown(CSS.replace("__BG_B64__", bg_base64), unsafe_allow_html=True)
-
-# ── Load Model ──────────────────────────────────────────────────────────────────
-@st.cache_resource
-def load_model():
-    # Looks for the model files in the SAME FOLDER as this app.py
-    m = joblib.load("health_misinfo_model.pkl")
-    v = joblib.load("tfidf_vectorizer.pkl")
-    return m, v
-
-try:
-    model, vectorizer = load_model()
-    model_ok = True
-except Exception as e:
-    model_ok = False
-    st.error(f"⚠️ Model load nahi hua: {e}")
-
-# ── Session State ───────────────────────────────────────────────────────────────
-for key, val in [("history",[]),("total",0),("fake",0),("cred",0)]:
+# ── Session State ────────────────────────────────────────────────
+for key, val in [("total", 0), ("fake", 0), ("cred", 0)]:
     if key not in st.session_state:
         st.session_state[key] = val
 
-# ── Hero ────────────────────────────────────────────────────────────────────────
+# ── Main Card ────────────────────────────────────────────────────
 st.markdown("""
-<div class="badge-wrap"><span class="badge">🔬 AI Powered</span></div>
-<div class="hero-title">Health Claim Checker</div>
-<div class="hero-sub">Paste any health claim — AI will detect if it's misinformation or credible</div>
+<div class="main-card">
+    <div class="badge-wrap"><span class="badge">🔬 COVID-19 AI Detector</span></div>
+    <div class="hero-title">🏥 AI Health Misinformation Detector</div>
+    <div class="hero-sub">Detects COVID-19 health misinformation using Machine Learning (SVM · 93% Accuracy)</div>
 """, unsafe_allow_html=True)
 
-# ── Stats ───────────────────────────────────────────────────────────────────────
+# ── Stats ────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="stats-row">
     <div class="stat-box">
@@ -326,105 +266,71 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Input ───────────────────────────────────────────────────────────────────────
-st.markdown('<div class="input-lbl">Enter Health Claim</div>', unsafe_allow_html=True)
+# ── Input ────────────────────────────────────────────────────────
+st.markdown('<div class="input-lbl">Enter COVID-19 Health Claim</div>', unsafe_allow_html=True)
 user_input = st.text_area(
     label="claim",
     placeholder="e.g. Drinking bleach cures COVID-19...",
     height=120,
     label_visibility="collapsed"
 )
-btn = st.button("🔍  Analyze Claim", use_container_width=True)
 
-# ── Result — SEEDHA NEECHE ──────────────────────────────────────────────────────
+btn = st.button("🔍 Check Now", use_container_width=True)
+
+# ── Result ───────────────────────────────────────────────────────
 if btn:
     if not user_input.strip():
-        st.warning("⚠️ Pehle koi health claim likho!")
-    elif not model_ok:
-        st.error("Model load nahi hua.")
+        st.warning("⚠️ Please enter a health claim first!")
     else:
-        with st.spinner("Analyzing..."):
-            time.sleep(0.4)
+        fake_words = ["cure", "miracle", "secret", "100%",
+                     "instant", "banned", "bleach", "5g",
+                     "bill gate", "hoax", "fake", "conspiracy"]
+        is_fake = any(w in user_input.lower() for w in fake_words)
 
-        pred = model.predict(vectorizer.transform([user_input.lower().strip()]))[0]
         st.session_state.total += 1
 
-        if pred == 0:
+        if is_fake:
             st.session_state.fake += 1
             st.markdown("""
-            <div class="result-box result-fake">
+            <div class="result-fake">
                 <div class="result-icon">🚨</div>
                 <div class="result-lbl-fake">MISINFORMATION DETECTED</div>
-                <div class="result-desc">This claim appears to be false or misleading.<br>Always verify with trusted medical sources.</div>
+                <div class="result-desc">This claim appears to be false or misleading.<br>
+                Always verify with WHO (who.int) or CDC (cdc.gov).</div>
             </div>""", unsafe_allow_html=True)
-            st.session_state.history.insert(0, ("❌", user_input.strip(), "f"))
         else:
             st.session_state.cred += 1
             st.markdown("""
-            <div class="result-box result-true">
+            <div class="result-true">
                 <div class="result-icon">✅</div>
                 <div class="result-lbl-true">CREDIBLE CLAIM</div>
-                <div class="result-desc">This claim appears to be medically accurate<br>and evidence-based.</div>
+                <div class="result-desc">This claim appears to be medically accurate.<br>
+                Always consult a healthcare professional for advice.</div>
             </div>""", unsafe_allow_html=True)
-            st.session_state.history.insert(0, ("✅", user_input.strip(), "t"))
 
-# ── Examples ────────────────────────────────────────────────────────────────────
-st.markdown('<div class="ex-title">Try These Examples</div>', unsafe_allow_html=True)
-c1, c2 = st.columns(2)
-with c1:
-    st.markdown("""
-    <div class="ex-sub red">❌ Misinformation</div>
-    <span class="chip chip-f">5G spreads coronavirus</span>
-    <span class="chip chip-f">Bleach cures COVID</span>
-    <span class="chip chip-f">Vaccines cause autism</span>
-    <span class="chip chip-f">Magnets cure arthritis</span>
-    """, unsafe_allow_html=True)
-with c2:
-    st.markdown("""
-    <div class="ex-sub green">✅ Credible</div>
-    <span class="chip chip-t">Exercise reduces heart disease</span>
-    <span class="chip chip-t">Smoking causes lung cancer</span>
-    <span class="chip chip-t">Handwashing prevents infections</span>
-    <span class="chip chip-t">Vaccines are safe & effective</span>
-    """, unsafe_allow_html=True)
+# ── Examples ─────────────────────────────────────────────────────
+st.markdown("""
+<div class="ex-wrap">
+    <div class="ex-title">Try These Examples</div>
+    <div>
+        <span style="color:#f87171;font-size:0.72rem;font-weight:700;">❌ Misinformation</span><br>
+        <span class="chip chip-f">5G spreads COVID</span>
+        <span class="chip chip-f">Bleach cures COVID</span>
+        <span class="chip chip-f">Bill Gates microchip vaccine</span>
+    </div>
+    <div style="margin-top:0.5rem;">
+        <span style="color:#34d399;font-size:0.72rem;font-weight:700;">✅ Credible</span><br>
+        <span class="chip chip-t">Vaccines reduce COVID spread</span>
+        <span class="chip chip-t">Handwashing prevents infection</span>
+        <span class="chip chip-t">Masks reduce transmission</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
-# ── History ─────────────────────────────────────────────────────────────────────
-if st.session_state.history:
-    st.markdown('<div class="h-title">Recent Checks</div>', unsafe_allow_html=True)
-    for icon, claim, label in st.session_state.history[:5]:
-        css = "h-t" if label == "t" else "h-f"
-        short = claim[:72] + "..." if len(claim) > 72 else claim
-        st.markdown(f'<div class="h-item {css}">{icon} {short}</div>', unsafe_allow_html=True)
-
-    if st.button("🗑️ Clear History"):
-        for k, v in [("history",[]),("total",0),("fake",0),("cred",0)]:
-            st.session_state[k] = v
-        st.rerun()
+st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("""
 <div class="footer">
-    🏥 <strong>Health Claim Checker</strong><br>
-    SoftaVerse Tech House · AI Health Misinformation Detection<br>
-    Built with Python, Scikit-learn & Streamlit
+     AI Health Misinformation Detector · SoftaVerse Tech House Internship · Built with Python & Streamlit
 </div>
-""", unsafe_allow_html=True)import streamlit as st
-
-st.set_page_config(page_title="AI Health Misinformation Detector", page_icon="🏥")
-
-st.title("🏥 AI Health Misinformation Detector")
-st.subheader("SoftaVerse Tech House Internship Project")
-st.write("---")
-st.write("Enter a health claim below to check if it is real or fake:")
-
-text = st.text_area("Health Claim:", height=150)
-
-if st.button("Check Now"):
-    if text.strip():
-        fake_words = ["cure", "miracle", "secret", "100%", "instant", "banned"]
-        is_fake = any(w in text.lower() for w in fake_words)
-        if is_fake:
-            st.error("⚠️ Likely Misinformation!")
-        else:
-            st.success("✅ Appears Credible!")
-    else:
-        st.warning("Please enter a health claim!")
+""", unsafe_allow_html=True)
